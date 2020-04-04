@@ -63,6 +63,14 @@ class Bot:
 
     def send_tag_message(self, recipient_id, message, tag=TagType.human_agent,
                          notification_type=NotificationType.regular):
+        """
+        https://developers.facebook.com/docs/messenger-platform/send-messages/message-tags#sending
+        :param recipient_id:
+        :param message:
+        :param tag:
+        :param notification_type:
+        :return:
+        """
         return self.send_recipient(recipient_id, {
             'message': message,
             'messaging_type': 'MESSAGE_TAG',
