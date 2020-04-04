@@ -15,6 +15,13 @@ class NotificationType(Enum):
     no_push = "NO_PUSH"
 
 
+class TagType:
+    confirmed_event_update = 'CONFIRMED_EVENT_UPDATE'
+    post_purchase_update = 'POST_PURCHASE_UPDATE'
+    account_update = 'ACCOUNT_UPDATE'
+    human_agent = 'HUMAN_AGENT'
+
+
 class Bot:
     def __init__(self, access_token, **kwargs):
         """
@@ -52,6 +59,14 @@ class Bot:
     def send_message(self, recipient_id, message, notification_type=NotificationType.regular):
         return self.send_recipient(recipient_id, {
             'message': message
+        }, notification_type)
+
+    def send_tag_message(self, recipient_id, message, tag=TagType.human_agent,
+                         notification_type=NotificationType.regular):
+        return self.send_recipient(recipient_id, {
+            'message': message,
+            'messaging_type': 'MESSAGE_TAG',
+            'tag': tag
         }, notification_type)
 
     def send_attachment(self, recipient_id, attachment_type, attachment_path,
