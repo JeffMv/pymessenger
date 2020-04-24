@@ -1,3 +1,4 @@
+import json
 import os
 from enum import Enum
 
@@ -78,7 +79,7 @@ class Bot:
         }, notification_type)
 
     def send_attachment(self, recipient_id, attachment_type, attachment_path,
-                        notification_type=NotificationType.regular):
+                        notification_type=NotificationType.regular, is_reusable=True):
         """Send an attachment to the specified recipient using local path.
         Input:
             recipient_id: recipient id to send to
@@ -87,29 +88,34 @@ class Bot:
         Output:
             Response from API as <dict>
         """
+        file_type = f'''{attachment_type}/{attachment_path.split('.')[-1]}'''
+        with open(attachment_path, 'rb') as f:
+            file_data = f.read()
         payload = {
-            'recipient': {
-                {
-                    'id': recipient_id
-                }
-            },
-            'notification_type': notification_type,
-            'message': {
-                {
-                    'attachment': {
-                        'type': attachment_type,
-                        'payload': {}
+            'recipient': json.dumps({
+                'id': recipient_id
+            }),
+            'notification_type': notification_type.value,
+            'message': json.dumps({
+                'attachment': {
+                    'type': attachment_type,
+                    'payload': {
+                        'is_reusable': is_reusable
                     }
                 }
-            },
-            'filedata': (os.path.basename(attachment_path), open(attachment_path, 'rb'))
+            }),
+            'filedata': (os.path.basename(attachment_path), file_data, file_type)
         }
         multipart_data = MultipartEncoder(payload)
         multipart_header = {
             'Content-Type': multipart_data.content_type
         }
-        return requests.post(self.graph_url, data=multipart_data,
-                             params=self.auth_args, headers=multipart_header).json()
+        return requests.post(
+            '{0}/me/messages'.format(self.graph_url),
+            data=multipart_data,
+            params=self.auth_args,
+            headers=multipart_header
+        ).json()
 
     def send_attachment_url(self, recipient_id, attachment_type, attachment_url,
                             notification_type=NotificationType.regular):
@@ -241,7 +247,7 @@ class Bot:
             'sender_action': action
         }, notification_type)
 
-    def send_image(self, recipient_id, image_path, notification_type=NotificationType.regular):
+    def send_image(self, recipient_id, image_path, notification_type=NotificationType.regular, is_reusable=True):
         """Send an image to the specified recipient.
         Image must be PNG or JPEG or GIF (more might be supported).
         https://developers.facebook.com/docs/messenger-platform/send-api-reference/image-attachment
@@ -251,7 +257,7 @@ class Bot:
         Output:
             Response from API as <dict>
         """
-        return self.send_attachment(recipient_id, "image", image_path, notification_type)
+        return self.send_attachment(recipient_id, "image", image_path, notification_type, is_reusable=is_reusable)
 
     def send_image_url(self, recipient_id, image_url, notification_type=NotificationType.regular):
         """Send an image to specified recipient using URL.
