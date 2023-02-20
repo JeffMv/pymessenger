@@ -76,14 +76,15 @@ class Bot:
         # &message={text:'You did it!'}
         # &messaging_type=RESPONSE
         # &access_token=PAGE-ACCESS-TOKEN"
-        recipient_id = recipient_id.get("id")
+        
         request_endpoint = '{0}/{1}/messages'.format(self.graph_url, self.page_id)
         params = {
-            "recipient": recipient_id,
+            "recipient": {"id": recipient_id},
             "messaging_type": "RESPONSE",
             "message": message,
         }
         params.update(self.auth_args)
+        params = self._prepare_get_params(params)
         
         response = requests.post(
             request_endpoint,
@@ -91,7 +92,15 @@ class Bot:
         )
         result = response.json()
         return result
-
+    
+    def _prepare_get_params(self, data):
+        result = {}
+        for key in data:
+            value = data[key]
+            if not isinstance(value, str):
+                value = json.dumps(value)
+            result[key] = value
+        return result
 
     def send_tag_message(self, recipient_id, message, tag=TagType.human_agent,
                          notification_type=NotificationType.regular):
