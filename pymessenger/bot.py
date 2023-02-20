@@ -7,7 +7,7 @@ from requests_toolbelt import MultipartEncoder
 
 from pymessenger import utils
 
-DEFAULT_API_VERSION = 2.6
+DEFAULT_API_VERSION = 16.0
 
 
 class NotificationType(Enum):
@@ -28,13 +28,16 @@ class Bot:
         """
             @required:
                 access_token
+                page_id
             @optional:
                 api_version
                 app_secret
         """
 
         self.api_version = kwargs.get('api_version') or DEFAULT_API_VERSION
+        self._num_api_version = float(self.api_version)
         self.app_secret = kwargs.get('app_secret')
+        self.page_id = kwargs.get('page_id', "me")  # "me" is deprecated and removed though.
         self.graph_url = 'https://graph.facebook.com/v{0}'.format(self.api_version)
         self.access_token = access_token
 
@@ -58,9 +61,37 @@ class Bot:
         return self.send_raw(payload)
 
     def send_message(self, recipient_id, message, notification_type=NotificationType.regular):
+        if self._num_api_version >= 14.0:
+            return self.send_message_api16plus(recipient_id, message, notification_type=notification_type)
+        
         return self.send_recipient(recipient_id, {
             'message': message
         }, notification_type)
+    
+    # def send_message_api16plus(self, payload):
+    def send_message_api16plus(self, recipient_id, message, notification_type=NotificationType.regular):
+        ## modern API (2023) (src: https://developers.facebook.com/docs/messenger-platform/get-started#step-3--send-the-customer-a-message)
+        # curl -i -X POST "https://graph.facebook.com/v14.0/PAGE-ID/messages
+        # ?recipient={id:PSID}
+        # &message={text:'You did it!'}
+        # &messaging_type=RESPONSE
+        # &access_token=PAGE-ACCESS-TOKEN"
+        recipient_id = recipient_id.get("id")
+        request_endpoint = '{0}/{1}/messages'.format(self.graph_url, self.page_id)
+        params = {
+            "recipient": recipient_id,
+            "messaging_type": "RESPONSE",
+            "message": message,
+        }
+        params.update(self.auth_args)
+        
+        response = requests.post(
+            request_endpoint,
+            params=params,
+        )
+        result = response.json()
+        return result
+
 
     def send_tag_message(self, recipient_id, message, tag=TagType.human_agent,
                          notification_type=NotificationType.regular):
@@ -111,7 +142,7 @@ class Bot:
             'Content-Type': multipart_data.content_type
         }
         return requests.post(
-            '{0}/me/messages'.format(self.graph_url),
+            '{0}/{1}/messages'.format(self.graph_url, self.page_id),
             data=multipart_data,
             params=self.auth_args,
             headers=multipart_header
@@ -362,8 +393,9 @@ class Bot:
 
         return None
 
+    
     def send_raw(self, payload):
-        request_endpoint = '{0}/me/messages'.format(self.graph_url)
+        request_endpoint = '{0}/{1}/messages'.format(self.graph_url, self.page_id)
         response = requests.post(
             request_endpoint,
             params=self.auth_args,
@@ -384,7 +416,7 @@ class Bot:
         Output:
           Response from API as <dict>
         """
-        request_endpoint = '{0}/me/messenger_profile'.format(self.graph_url)
+        request_endpoint = '{0}/{1}/messenger_profile'.format(self.graph_url, self.page_id)
         response = requests.post(
             request_endpoint,
             params=self.auth_args,
@@ -401,7 +433,7 @@ class Bot:
         Output:
           Response from API as <dict>
         """
-        request_endpoint = '{0}/me/messenger_profile'.format(self.graph_url)
+        request_endpoint = '{0}/{1}/messenger_profile'.format(self.graph_url, self.page_id)
         response = requests.post(
             request_endpoint,
             params=self.auth_args,
@@ -417,7 +449,7 @@ class Bot:
         Response from API as <dict>
         """
         delete_obj = {"fields": ["get_started"]}
-        request_endpoint = '{0}/me/messenger_profile'.format(self.graph_url)
+        request_endpoint = '{0}/{1}/messenger_profile'.format(self.graph_url, self.page_id)
         response = requests.delete(
             request_endpoint,
             params=self.auth_args,
@@ -433,7 +465,7 @@ class Bot:
         Response from API as <dict>
         """
         delete_obj = {"fields": ["persistent_menu"]}
-        request_endpoint = '{0}/me/messenger_profile'.format(self.graph_url)
+        request_endpoint = '{0}/{1}/messenger_profile'.format(self.graph_url, self.page_id)
         response = requests.delete(
             request_endpoint,
             params=self.auth_args,
